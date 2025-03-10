@@ -25,7 +25,7 @@ venv/
 env/
 ENV/
 .env/
-
+*docker-up*
 # Project specific
 chat_databases/
 *.session

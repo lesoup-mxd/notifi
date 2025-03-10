@@ -19,7 +19,7 @@ MESSAGE_HISTORY_LIMIT = 120  # Keep this many messages per chat
 
 # Add these constants at the top with your other constants
 LLM_ENDPOINT = "http://localhost:8000/v1/chat/completions"
-LLM_MODEL = "modularai/Llama-3.1-8B-Instruct-GGUF"
+LLM_MODEL = "tiiuae/Falcon3-1B-Instruct"
 LLM_TEMPERATURE = 0.0
 
 def get_db_path(chat_id):
@@ -331,11 +331,11 @@ async def get_unread_messages_for_chat(client, chat_id):
             messages.append((message.date.timestamp(), sender, message.text, message.id))
             
     # Return messages in chronological order (oldest first)
-    return sorted(messages, key=lambda x: x[0])
-
+    return sorted(messages, key=lambda x: x[0])[:MESSAGE_HISTORY_LIMIT]
 async def summarize_unread(client, chat_id):
     """Summarizes only the unread messages from a specific chat."""
     unread_messages = await get_unread_messages_for_chat(client, chat_id)
+    
     
     if not unread_messages:
         print(f"No unread messages found for chat {chat_id}")
@@ -422,6 +422,10 @@ async def generate_reply(client, chat_id):
 
 async def process_with_llm_async(prompt):
     """Async version of process_with_llm that works with a direct prompt."""
+    # Ensure prompt is never None
+    if prompt is None:
+        prompt = "Please analyze the recent messages."
+    
     # Prepare the curl command for streaming
     curl_cmd = [
         "curl", "-sN", LLM_ENDPOINT,
@@ -462,6 +466,8 @@ async def process_with_llm_async(prompt):
                             collected_response += content
                 except json.JSONDecodeError:
                     pass
+                except Exception as e:
+                    print(f"Error parsing JSON: {str(e)}, line: {line}")
         
         # Add a final newline
         print("\n")
@@ -532,7 +538,7 @@ async def analyze_chat(chat_id, query=None):
     # Pass the existing client instead of creating a new one
     #await fetch_messages(client)
     # Then process with LLM
-    result = process_with_llm(chat_id, query)
+    result = await process_with_llm_async(query)
 
 if __name__ == "__main__":
     import asyncio
